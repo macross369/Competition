@@ -365,8 +365,8 @@
   </div>
 
   <!-- 4. 備份與還原 Modal (防止 GitHub 更新覆蓋) -->
-  <div id="modalBackup" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100">
+  <div id="modalBackup" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto">
       <div class="flex items-center justify-between pb-3 border-b border-slate-100">
         <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
           <i class="fa-solid fa-database text-indigo-600"></i> 資料備份與安全性保障
@@ -377,24 +377,49 @@
       </div>
       <div class="mt-4 space-y-4 text-xs sm:text-sm text-slate-600">
         <p class="leading-relaxed">
-          本系統設計支援雲端資料庫同步。當您在 GitHub 上傳新的 HTML 程式碼更新版時，雲端原有賽事與學生成績記錄皆受到保護，不會被覆蓋。
+          本系統資料即時儲存於雲端與本機。當您上傳新版 HTML 至 GitHub 時，舊紀錄皆受保護。您可隨時使用下列方式手動備份與還原：
         </p>
-        <div class="p-3 bg-indigo-50 border border-indigo-100 rounded-xl space-y-2">
-          <div class="font-semibold text-indigo-900">離線純本機手動保存：</div>
-          <p class="text-xs text-indigo-700">您也可以隨時匯出整套賽事成績 JSON 檔儲存於您的電腦，隨時一鍵還原。</p>
-          <div class="flex gap-2 pt-1">
-            <button onclick="exportAllDataJSON()" class="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium text-center shadow-sm">
-              <i class="fa-solid fa-download"></i> 下載全域備份 JSON
+
+        <!-- 匯出區塊 -->
+        <div class="p-4 bg-indigo-50/70 border border-indigo-100 rounded-xl space-y-3">
+          <div class="font-bold text-indigo-900 flex items-center gap-2 text-xs sm:text-sm">
+            <i class="fa-solid fa-file-export text-indigo-600"></i> 匯出/備份目前賽事成績
+          </div>
+          <div class="flex flex-wrap sm:flex-nowrap gap-2">
+            <button onclick="exportAllDataJSON()" class="flex-1 py-2 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium text-center shadow-sm transition-colors flex items-center justify-center gap-1.5">
+              <i class="fa-solid fa-download"></i> 下載備份檔案 (.json)
+            </button>
+            <button onclick="copyBackupToClipboard()" class="py-2 px-3 bg-white hover:bg-slate-50 text-indigo-700 border border-indigo-300 rounded-lg text-xs font-medium text-center transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap">
+              <i class="fa-regular fa-copy"></i> 複製文字備份碼
             </button>
           </div>
         </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">從備份 JSON 檔還原：</label>
-          <input type="file" id="importJsonFileInput" accept=".json" onchange="handleImportJSON(event)" class="text-xs text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer">
+
+        <!-- 還原區塊 -->
+        <div class="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+          <div class="font-bold text-slate-800 flex items-center gap-2 text-xs sm:text-sm">
+            <i class="fa-solid fa-file-import text-emerald-600"></i> 還原備份資料
+          </div>
+          
+          <!-- 方式一：選擇檔案 -->
+          <div>
+            <label class="block text-xs font-medium text-slate-700 mb-1">方式 A：上傳 .json 備份檔</label>
+            <input type="file" id="importJsonFileInput" accept=".json" onchange="handleImportJSON(event)" class="w-full text-xs text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer">
+          </div>
+
+          <!-- 方式二：貼上文字碼還原 -->
+          <div class="pt-2 border-t border-slate-200">
+            <label class="block text-xs font-medium text-slate-700 mb-1">方式 B：直接貼上文字備份碼</label>
+            <textarea id="importJsonTextarea" rows="3" placeholder="請貼上備份文字碼（JSON 格式）..." class="w-full text-xs p-2 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"></textarea>
+            <button onclick="handleImportFromText()" class="mt-2 w-full py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-medium transition-colors flex items-center justify-center gap-1">
+              <i class="fa-solid fa-arrow-rotate-left"></i> 確認從文字貼上內容還原
+            </button>
+          </div>
         </div>
+
       </div>
       <div class="mt-5 flex justify-end">
-        <button onclick="toggleBackupModal(false)" class="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">完成</button>
+        <button onclick="toggleBackupModal(false)" class="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">關閉</button>
       </div>
     </div>
   </div>
@@ -453,8 +478,9 @@
     import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    // 全域 App ID 與 Firebase 環境變數檢測
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'school-sports-scoring-system-v1';
+    // 全域 App ID 與 Firebase 環境變數檢測 (掛載至 window 確保跨 script 存取)
+    window.appId = typeof __app_id !== 'undefined' ? __app_id : 'school-sports-scoring-system-v1';
+    const appId = window.appId;
     document.getElementById('displayAppId').innerText = appId;
 
     // 應用程式資料結構 State
@@ -1398,62 +1424,162 @@
     // ================= 備份與還原功能 (全域 JSON) =================
     window.openBackupModal = function() { toggleBackupModal(true); };
     window.toggleBackupModal = function(show) {
-      document.getElementById('modalBackup').classList.toggle('hidden', !show);
+      const modal = document.getElementById('modalBackup');
+      if (show) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+      } else {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
     };
 
     window.openCloudModal = function() { toggleCloudModal(true); };
     window.toggleCloudModal = function(show) {
-      document.getElementById('modalCloud').classList.toggle('hidden', !show);
+      const modal = document.getElementById('modalCloud');
+      if (show) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+      } else {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
     };
 
     window.toggleStudentBatchModal = function(show) {
-      document.getElementById('modalStudentBatch').classList.toggle('hidden', !show);
+      const modal = document.getElementById('modalStudentBatch');
+      if (show) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+      } else {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
     };
 
+    // 匯出 JSON 備份檔案 (改用 Blob 物件，相容性高且不受 iframe 沙箱限制)
     window.exportAllDataJSON = function() {
-      const fullData = {
-        appId: appId,
-        version: "1.0",
-        exportDate: new Date().toISOString(),
-        students: window.AppState.students,
-        competitions: window.AppState.competitions,
-        scores: window.AppState.scores
-      };
+      try {
+        const currentAppId = window.appId || (typeof __app_id !== 'undefined' ? __app_id : 'school-sports-scoring-system-v1');
+        const fullData = {
+          appId: currentAppId,
+          version: "1.0",
+          exportDate: new Date().toISOString(),
+          students: window.AppState.students || [],
+          competitions: window.AppState.competitions || [],
+          scores: window.AppState.scores || {}
+        };
 
-      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(fullData, null, 2));
-      const downloadAnchor = document.createElement('a');
-      downloadAnchor.setAttribute("href", dataStr);
-      downloadAnchor.setAttribute("download", `比賽成績完整備份_${new Date().toISOString().slice(0,10)}.json`);
-      document.body.appendChild(downloadAnchor);
-      downloadAnchor.click();
-      downloadAnchor.remove();
-      showToast('已完成全域資料 JSON 備份下載！');
+        const jsonString = JSON.stringify(fullData, null, 2);
+        const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const downloadAnchor = document.createElement('a');
+        downloadAnchor.href = url;
+        downloadAnchor.download = `比賽成績完整備份_${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(downloadAnchor);
+        downloadAnchor.click();
+        document.body.removeChild(downloadAnchor);
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+        showToast('已完成全域資料 JSON 備份檔案下載！');
+      } catch (err) {
+        console.error("下載備份檔案失敗:", err);
+        showToast('下載失敗，建議改用「複製文字備份碼」功能', 'error');
+      }
     };
 
+    // 複製備份碼至剪貼簿 (遵循 iframe document.execCommand 規範)
+    window.copyBackupToClipboard = function() {
+      try {
+        const currentAppId = window.appId || (typeof __app_id !== 'undefined' ? __app_id : 'school-sports-scoring-system-v1');
+        const fullData = {
+          appId: currentAppId,
+          version: "1.0",
+          exportDate: new Date().toISOString(),
+          students: window.AppState.students || [],
+          competitions: window.AppState.competitions || [],
+          scores: window.AppState.scores || {}
+        };
+
+        const jsonString = JSON.stringify(fullData);
+        const tempTextarea = document.createElement('textarea');
+        tempTextarea.value = jsonString;
+        tempTextarea.style.position = 'fixed';
+        tempTextarea.style.opacity = '0';
+        document.body.appendChild(tempTextarea);
+        tempTextarea.select();
+        const success = document.execCommand('copy');
+        document.body.removeChild(tempTextarea);
+
+        if (success) {
+          showToast('已成功複製備份代碼至剪貼簿！');
+        } else {
+          showToast('無法存取剪貼簿，請使用下載檔案功能', 'error');
+        }
+      } catch (err) {
+        showToast('複製失敗', 'error');
+      }
+    };
+
+    // 解析並套用備份物件
+    function applyImportedData(imported) {
+      if (!imported || typeof imported !== 'object') {
+        throw new Error('資料格式不正確');
+      }
+
+      if (Array.isArray(imported.students) && Array.isArray(imported.competitions)) {
+        window.AppState.students = imported.students;
+        window.AppState.competitions = imported.competitions;
+        window.AppState.scores = imported.scores || {};
+        window.saveStateToCloud();
+        renderAll();
+        toggleBackupModal(false);
+        showToast(`已成功還原！共載入 ${imported.students.length} 位學生、${imported.competitions.length} 項賽事`);
+        return true;
+      } else {
+        throw new Error('未包含有效的學生或比賽名冊結構');
+      }
+    }
+
+    // 從檔案還原
     window.handleImportJSON = function(event) {
-      const file = event.target.files[0];
+      const inputEl = event.target;
+      const file = inputEl.files && inputEl.files[0];
       if (!file) return;
 
       const reader = new FileReader();
       reader.onload = function(e) {
         try {
           const imported = JSON.parse(e.target.result);
-          if (imported.students && imported.competitions) {
-            window.AppState.students = imported.students || [];
-            window.AppState.competitions = imported.competitions || [];
-            window.AppState.scores = imported.scores || {};
-            window.saveStateToCloud();
-            renderAll();
-            toggleBackupModal(false);
-            showToast('備份資料已成功完整還原！');
-          } else {
-            showToast('JSON 格式不符，還原失敗', 'error');
-          }
+          applyImportedData(imported);
         } catch (err) {
-          showToast('解析 JSON 檔案失敗', 'error');
+          showToast(`解析 JSON 失敗：${err.message || '格式不符'}`, 'error');
+        } finally {
+          inputEl.value = ''; // 重設 input，允許重複選取同個檔案
         }
       };
+      reader.onerror = function() {
+        showToast('讀取檔案發生錯誤', 'error');
+        inputEl.value = '';
+      };
       reader.readAsText(file);
+    };
+
+    // 從文字貼上框還原
+    window.handleImportFromText = function() {
+      const textarea = document.getElementById('importJsonTextarea');
+      const text = textarea.value.trim();
+      if (!text) {
+        showToast('請先貼上備份文字碼', 'error');
+        return;
+      }
+
+      try {
+        const imported = JSON.parse(text);
+        applyImportedData(imported);
+        textarea.value = '';
+      } catch (err) {
+        showToast(`貼上的內容無法解析：${err.message || '請確認格式'}`, 'error');
+      }
     };
 
     // ================= 自訂對話框 (取消/確定，避免 alert/confirm) =================
