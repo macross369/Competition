@@ -1,0 +1,1518 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>學生各項比賽成績雲端即時記錄系統</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0f7ff',
+              100: '#e0effe',
+              500: '#0284c7',
+              600: '#0369a1',
+              700: '#075985',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&display=swap');
+    body {
+      font-family: 'Noto Sans TC', sans-serif;
+    }
+    /* 自訂捲軸樣式 */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col antialiased">
+
+  <!-- 頂部導覽列 -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <!-- 標題與 Logo -->
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-600 to-indigo-600 flex items-center justify-center text-white shadow-md">
+            <i class="fa-solid fa-trophy text-lg"></i>
+          </div>
+          <div>
+            <h1 class="text-lg font-bold text-slate-800 leading-tight">校園賽事即時成績系統</h1>
+            <p class="text-xs text-slate-500 flex items-center gap-1">
+              <span id="syncStatusDot" class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span id="syncStatusText">雲端即時連線中</span>
+            </p>
+          </div>
+        </div>
+
+        <!-- 輔助工具列 -->
+        <div class="flex items-center space-x-2">
+          <button id="btnBackup" onclick="openBackupModal()" class="px-3 py-1.5 text-xs sm:text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors flex items-center gap-1.5">
+            <i class="fa-solid fa-download"></i>
+            <span class="hidden sm:inline">備份/還原</span>
+          </button>
+          <button id="btnCloudConfig" onclick="openCloudModal()" class="px-3 py-1.5 text-xs sm:text-sm font-medium text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 rounded-lg transition-colors flex items-center gap-1.5">
+            <i class="fa-solid fa-cloud"></i>
+            <span class="hidden sm:inline">雲端同步設定</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 比賽項目標籤列 (動態產生) -->
+      <nav class="flex space-x-1 overflow-x-auto py-2 -mx-4 px-4 sm:mx-0 sm:px-0 border-t border-slate-100 no-scrollbar">
+        <button id="tab-settings" onclick="switchTab('settings')" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all duration-200 flex items-center gap-2 bg-sky-600 text-white shadow-sm">
+          <i class="fa-solid fa-sliders"></i>
+          <span>首頁設定</span>
+        </button>
+        <div id="dynamicTabs" class="flex space-x-1">
+          <!-- 動態載入比賽標籤 -->
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <!-- 主內容容器 -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+
+    <!-- ================= 頁面 1: 首頁設定頁 (學生資訊與比賽項目設定) ================= -->
+    <div id="view-settings" class="space-y-8 block">
+      
+      <!-- 歡迎與說明橫幅 -->
+      <div class="bg-gradient-to-r from-sky-600 to-indigo-700 rounded-2xl p-6 text-white shadow-lg">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h2 class="text-xl sm:text-2xl font-bold flex items-center gap-2">
+              <i class="fa-solid fa-gear"></i> 賽事管理與基本資料設定
+            </h2>
+            <p class="text-sky-100 text-sm mt-1">
+              在此建立學生名單與各項比賽。系統會自動依年級高低排序，並建立專屬計分標籤。
+            </p>
+          </div>
+          <div class="flex items-center gap-3 bg-white/10 backdrop-blur-sm px-4 py-2.5 rounded-xl border border-white/20 text-xs sm:text-sm">
+            <i class="fa-solid fa-shield-halved text-amber-300 text-lg"></i>
+            <div>
+              <div class="font-semibold text-white">上傳 GitHub 防覆蓋機制已啟用</div>
+              <div class="text-sky-200 text-xs">資料儲存於雲端資料庫，更新代碼不影響紀錄</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        
+        <!-- 模組 A: 學生資訊管理 -->
+        <section class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80 flex flex-col">
+          <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+            <div class="flex items-center gap-2.5">
+              <span class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold text-sm">
+                <i class="fa-solid fa-users"></i>
+              </span>
+              <div>
+                <h3 class="font-bold text-slate-800 text-base">學生資訊管理</h3>
+                <p class="text-xs text-slate-500">已登記學生：<span id="studentCountBadge" class="font-semibold text-emerald-600">0</span> 人</p>
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <button onclick="toggleStudentBatchModal(true)" class="text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-medium px-3 py-1.5 rounded-lg border border-emerald-200 transition-colors flex items-center gap-1">
+                <i class="fa-solid fa-file-import"></i> 批次匯入名單
+              </button>
+            </div>
+          </div>
+
+          <!-- 個別新增學生表單 -->
+          <form id="individualStudentForm" onsubmit="handleIndividualStudentSubmit(event)" class="mt-4 p-3 bg-slate-50 rounded-xl border border-slate-200/60 flex flex-wrap sm:flex-nowrap gap-2 items-center">
+            <div class="w-full sm:w-1/3">
+              <input type="text" id="stuClassInput" placeholder="班級 (如: 一年一班 或 101)" required
+                class="w-full text-xs sm:text-sm px-3 py-2 bg-white rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            </div>
+            <div class="w-full sm:w-1/3">
+              <input type="text" id="stuNameInput" placeholder="學生姓名 (如: 陳大同)" required
+                class="w-full text-xs sm:text-sm px-3 py-2 bg-white rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            </div>
+            <button type="submit" class="w-full sm:w-auto px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap shadow-sm">
+              <i class="fa-solid fa-plus"></i> 新增
+            </button>
+          </form>
+
+          <!-- 學生名單清單檢視 -->
+          <div class="mt-4 flex-1">
+            <div class="flex items-center justify-between text-xs text-slate-500 mb-2">
+              <span>班級與名單預覽 (依年級由小至大排序)</span>
+              <button onclick="clearAllStudentsConfirm()" class="text-rose-500 hover:text-rose-700 font-medium text-xs">
+                清空全部學生
+              </button>
+            </div>
+            <div class="max-h-72 overflow-y-auto border border-slate-200 rounded-xl divide-y divide-slate-100 bg-white" id="studentsListContainer">
+              <!-- 學生列表動態產生 -->
+            </div>
+          </div>
+        </section>
+
+        <!-- 模組 B: 比賽項目設定 -->
+        <section class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80 flex flex-col">
+          <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+            <div class="flex items-center gap-2.5">
+              <span class="w-8 h-8 rounded-lg bg-sky-100 text-sky-600 flex items-center justify-center font-bold text-sm">
+                <i class="fa-solid fa-medal"></i>
+              </span>
+              <div>
+                <h3 class="font-bold text-slate-800 text-base">比賽項目設定</h3>
+                <p class="text-xs text-slate-500">已建立比賽：<span id="competitionCountBadge" class="font-semibold text-sky-600">0</span> 項</p>
+              </div>
+            </div>
+            <button onclick="openCompetitionModal('add')" class="text-xs bg-sky-600 hover:bg-sky-700 text-white font-medium px-3.5 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 shadow-sm">
+              <i class="fa-solid fa-plus"></i> 新增比賽項目
+            </button>
+          </div>
+
+          <!-- 比賽項目清單 -->
+          <div class="mt-4 flex-1 overflow-y-auto max-h-96 space-y-3" id="competitionsListContainer">
+            <!-- 比賽卡片動態載入 -->
+          </div>
+        </section>
+
+      </div>
+    </div>
+
+    <!-- ================= 頁面 2: 各比賽項目計分頁面 (動態切換) ================= -->
+    <div id="view-competition" class="space-y-6 hidden">
+      <!-- 比賽頁面抬頭資訊卡 -->
+      <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="px-2.5 py-1 text-xs font-semibold rounded-md bg-sky-100 text-sky-800">競賽成績評定</span>
+              <span id="compDuplicateBadge" class="px-2.5 py-1 text-xs font-semibold rounded-md bg-amber-100 text-amber-800">名次不可重複</span>
+            </div>
+            <h2 id="currentCompTitle" class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-1">比賽名稱</h2>
+            <p id="currentCompRules" class="text-sm text-slate-500 mt-1">錄取名次設定：前 3 名</p>
+          </div>
+          
+          <!-- 快捷操作：得獎名冊摘要看板開關 -->
+          <div class="flex items-center gap-2">
+            <button onclick="exportCurrentScoreCSV()" class="px-3.5 py-2 text-xs sm:text-sm font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition-colors flex items-center gap-1.5">
+              <i class="fa-solid fa-file-csv"></i> 匯出此項成績
+            </button>
+            <button onclick="toggleLeaderboardModal(true)" class="px-4 py-2 text-xs sm:text-sm font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-sm transition-colors flex items-center gap-1.5">
+              <i class="fa-solid fa-ranking-star"></i> 查看目前得獎名冊
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 即時名次已佔用提示區 (當不允許重複名次時) -->
+      <div id="activeRanksBanner" class="bg-indigo-50/70 border border-indigo-100 rounded-xl p-4 hidden">
+        <div class="text-xs font-semibold text-indigo-900 mb-1.5 flex items-center gap-1.5">
+          <i class="fa-solid fa-circle-info"></i> 目前已獲獎名單快覽：
+        </div>
+        <div id="activeRanksList" class="flex flex-wrap gap-2 text-xs">
+          <!-- 呈現目前誰已拿下名次 -->
+        </div>
+      </div>
+
+      <!-- 班級學生卡片 (各班以獨立整寬卡片呈現，學生每列 6 人橫式排列) -->
+      <div id="classesGridContainer" class="space-y-6">
+        <!-- 依班級產生的卡片 -->
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ================= 模態視窗 (Modals) ================= -->
+
+  <!-- 1. 批次建立學生名單 Modal -->
+  <div id="modalStudentBatch" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-100">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2">
+          <i class="fa-solid fa-paste text-emerald-600"></i> 批次匯入學生名單
+        </h3>
+        <button onclick="toggleStudentBatchModal(false)" class="text-slate-400 hover:text-slate-600 text-lg">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="mt-4 space-y-3">
+        <p class="text-xs text-slate-600 leading-relaxed">
+          請直接由 Excel、Word 或記事本複製並貼上。每行一位學生，支援空格、逗號或 Tab 分隔。<br>
+          <span class="font-medium text-emerald-700">格式範例：</span><br>
+          <code class="bg-slate-100 px-2 py-0.5 rounded text-slate-700">一年一班 王小明</code><br>
+          <code class="bg-slate-100 px-2 py-0.5 rounded text-slate-700">102, 陳大天</code><br>
+          <code class="bg-slate-100 px-2 py-0.5 rounded text-slate-700">二年乙班 林美麗</code>
+        </p>
+        <textarea id="batchStudentTextarea" rows="8" placeholder="一年一班 王小明&#10;一年一班 李小華&#10;二年一班 張大千..."
+          class="w-full text-xs sm:text-sm p-3 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none font-mono"></textarea>
+      </div>
+      <div class="mt-5 flex justify-end gap-2.5">
+        <button onclick="toggleStudentBatchModal(false)" class="px-4 py-2 text-xs sm:text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg">取消</button>
+        <button onclick="handleBatchStudentsSubmit()" class="px-5 py-2 text-xs sm:text-sm font-medium bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-sm">
+          確認解析並匯入
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. 新增 / 編輯比賽項目 Modal -->
+  <div id="modalCompetition" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 id="compModalTitle" class="font-bold text-slate-800 text-lg flex items-center gap-2">
+          <i class="fa-solid fa-trophy text-sky-600"></i> 新增比賽項目
+        </h3>
+        <button onclick="closeCompetitionModal()" class="text-slate-400 hover:text-slate-600 text-lg">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <form id="compForm" onsubmit="handleCompetitionSubmit(event)" class="mt-4 space-y-4">
+        <input type="hidden" id="compFormId" value="">
+        
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">比賽名稱</label>
+          <input type="text" id="compFormName" placeholder="例如：大隊接力、國語朗讀、跳繩競賽" required
+            class="w-full text-sm px-3.5 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">錄取名次範圍 (預設前三名，可自訂)</label>
+          <div class="grid grid-cols-4 gap-2">
+            <label class="flex items-center justify-center py-2 border rounded-xl cursor-pointer text-xs font-medium text-center hover:bg-slate-50">
+              <input type="radio" name="compFormRanks" value="3" class="hidden peer" checked onchange="handleRankRadioChange(3)">
+              <span class="peer-checked:text-sky-600 peer-checked:font-bold">前 3 名</span>
+            </label>
+            <label class="flex items-center justify-center py-2 border rounded-xl cursor-pointer text-xs font-medium text-center hover:bg-slate-50">
+              <input type="radio" name="compFormRanks" value="5" class="hidden peer" onchange="handleRankRadioChange(5)">
+              <span class="peer-checked:text-sky-600 peer-checked:font-bold">前 5 名</span>
+            </label>
+            <label class="flex items-center justify-center py-2 border rounded-xl cursor-pointer text-xs font-medium text-center hover:bg-slate-50">
+              <input type="radio" name="compFormRanks" value="6" class="hidden peer" onchange="handleRankRadioChange(6)">
+              <span class="peer-checked:text-sky-600 peer-checked:font-bold">前 6 名</span>
+            </label>
+            <label class="flex items-center justify-center py-2 border rounded-xl cursor-pointer text-xs font-medium text-center hover:bg-slate-50">
+              <input type="radio" name="compFormRanks" value="custom" class="hidden peer" id="rankCustomRadio" onchange="handleRankRadioChange('custom')">
+              <span class="peer-checked:text-sky-600 peer-checked:font-bold">自訂</span>
+            </label>
+          </div>
+          <div id="customRankInputBox" class="mt-2 hidden">
+            <input type="number" id="compFormCustomRankNum" min="1" max="20" placeholder="請輸入取前幾名 (1-20)"
+              class="w-full text-xs px-3 py-1.5 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">名次是否可重複 (並列)</label>
+          <div class="flex gap-4">
+            <label class="flex items-center gap-2 cursor-pointer text-xs text-slate-700">
+              <input type="radio" name="compFormDuplicate" value="false" checked class="text-sky-600 focus:ring-sky-500">
+              <span>不可重複 (每名次僅限一人，如標準排位)</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer text-xs text-slate-700">
+              <input type="radio" name="compFormDuplicate" value="true" class="text-sky-600 focus:ring-sky-500">
+              <span>可重複 (允許同名次並列)</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="mt-6 flex justify-end gap-2.5 pt-3 border-t border-slate-100">
+          <button type="button" onclick="closeCompetitionModal()" class="px-4 py-2 text-xs sm:text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg">取消</button>
+          <button type="submit" class="px-5 py-2 text-xs sm:text-sm font-medium bg-sky-600 hover:bg-sky-700 text-white rounded-lg shadow-sm">
+            儲存比賽設定
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 3. 目前比賽得獎排行榜 Modal -->
+  <div id="modalLeaderboard" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-100">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2">
+          <i class="fa-solid fa-award text-amber-500"></i> <span id="lbCompTitle">得獎名單榜單</span>
+        </h3>
+        <button onclick="toggleLeaderboardModal(false)" class="text-slate-400 hover:text-slate-600 text-lg">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div id="leaderboardContent" class="mt-4 max-h-96 overflow-y-auto space-y-2">
+        <!-- 動態排行榜內容 -->
+      </div>
+      <div class="mt-5 flex justify-end">
+        <button onclick="toggleLeaderboardModal(false)" class="px-5 py-2 text-xs sm:text-sm font-medium bg-slate-800 text-white rounded-lg hover:bg-slate-700">關閉</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. 備份與還原 Modal (防止 GitHub 更新覆蓋) -->
+  <div id="modalBackup" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
+          <i class="fa-solid fa-database text-indigo-600"></i> 資料備份與安全性保障
+        </h3>
+        <button onclick="toggleBackupModal(false)" class="text-slate-400 hover:text-slate-600 text-lg">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="mt-4 space-y-4 text-xs sm:text-sm text-slate-600">
+        <p class="leading-relaxed">
+          本系統設計支援雲端資料庫同步。當您在 GitHub 上傳新的 HTML 程式碼更新版時，雲端原有賽事與學生成績記錄皆受到保護，不會被覆蓋。
+        </p>
+        <div class="p-3 bg-indigo-50 border border-indigo-100 rounded-xl space-y-2">
+          <div class="font-semibold text-indigo-900">離線純本機手動保存：</div>
+          <p class="text-xs text-indigo-700">您也可以隨時匯出整套賽事成績 JSON 檔儲存於您的電腦，隨時一鍵還原。</p>
+          <div class="flex gap-2 pt-1">
+            <button onclick="exportAllDataJSON()" class="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium text-center shadow-sm">
+              <i class="fa-solid fa-download"></i> 下載全域備份 JSON
+            </button>
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">從備份 JSON 檔還原：</label>
+          <input type="file" id="importJsonFileInput" accept=".json" onchange="handleImportJSON(event)" class="text-xs text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer">
+        </div>
+      </div>
+      <div class="mt-5 flex justify-end">
+        <button onclick="toggleBackupModal(false)" class="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">完成</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. 雲端同步設定 Modal (便於 GitHub Pages 獨立連線) -->
+  <div id="modalCloud" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
+          <i class="fa-solid fa-cloud-arrow-up text-sky-600"></i> 多平台雲端即時同步設定
+        </h3>
+        <button onclick="toggleCloudModal(false)" class="text-slate-400 hover:text-slate-600 text-lg">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="mt-4 space-y-3 text-xs text-slate-600">
+        <p class="leading-relaxed">
+          目前連線狀態：<span id="cloudStatusLabel" class="font-bold text-emerald-600">就緒運作中</span>。<br>
+          在任何手機、平板、電腦打開此網頁，裁判或記錄員輸入成績後，其他所有平台都會<b>即刻同步顯示</b>。
+        </p>
+        <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+          <span class="font-medium text-slate-700">工作階段代碼 (App ID)：</span>
+          <p id="displayAppId" class="font-mono text-sky-700 break-all select-all mt-1 bg-white p-1.5 rounded border border-slate-200 text-[11px]"></p>
+        </div>
+      </div>
+      <div class="mt-5 flex justify-end">
+        <button onclick="toggleCloudModal(false)" class="px-5 py-2 text-xs font-medium bg-sky-600 hover:bg-sky-700 text-white rounded-lg">確定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. 通用確認對話框 (取代禁止使用的 confirm()) -->
+  <div id="modalCustomConfirm" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-slate-100 text-center">
+      <div id="confirmIconBox" class="w-12 h-12 rounded-full bg-rose-100 text-rose-600 mx-auto flex items-center justify-center text-xl mb-3">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+      </div>
+      <h4 id="confirmTitle" class="text-base font-bold text-slate-900">確認執行此動作？</h4>
+      <p id="confirmMessage" class="text-xs text-slate-500 mt-2 leading-relaxed">此操作將無法復原，請再次確認。</p>
+      <div class="mt-5 flex justify-center gap-3">
+        <button id="btnConfirmCancel" class="px-4 py-2 text-xs sm:text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg">取消</button>
+        <button id="btnConfirmOk" class="px-4 py-2 text-xs sm:text-sm font-medium bg-rose-600 hover:bg-rose-700 text-white rounded-lg shadow-sm">確認執行</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 訊息通知 Toast -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-lg border text-xs sm:text-sm font-medium transition-all duration-300 transform translate-y-16 opacity-0 pointer-events-none">
+    <i id="toastIcon" class="fa-solid fa-check"></i>
+    <span id="toastMsg">通知訊息</span>
+  </div>
+
+  <!-- ================= 系統核心腳本 (含 Firebase 跨平台即時同步模組) ================= -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // 全域 App ID 與 Firebase 環境變數檢測
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'school-sports-scoring-system-v1';
+    document.getElementById('displayAppId').innerText = appId;
+
+    // 應用程式資料結構 State
+    window.AppState = {
+      currentTab: 'settings', // 'settings' 或 competitionId
+      students: [],           // [{ id, className, name }]
+      competitions: [],       // [{ id, name, maxRank: 3, allowDuplicates: false }]
+      scores: {},             // { [competitionId]: { [studentId]: rankString } }
+      isCloudSynced: false,
+      isSavingToCloud: false
+    };
+
+    // Firebase 連線初始化
+    let db = null;
+    let auth = null;
+    let currentUser = null;
+    let isFirebaseReady = false;
+
+    // 預設示範設定或注入的 config
+    const defaultFirebaseConfig = {
+      apiKey: "AIzaSyDummyKeyForSandboxUsageFallbackOnly",
+      authDomain: "demo-project.firebaseapp.com",
+      projectId: "demo-project",
+      storageBucket: "demo-project.appspot.com",
+      messagingSenderId: "123456789",
+      appId: "1:123456789:web:abcdef"
+    };
+
+    const firebaseConfig = typeof __firebase_config !== 'undefined' 
+      ? JSON.parse(__firebase_config) 
+      : defaultFirebaseConfig;
+
+    try {
+      const app = initializeApp(firebaseConfig);
+      auth = getAuth(app);
+      db = getFirestore(app);
+
+      // 遵循 RULE 3: 先進行認證，完成後才掛載監聽
+      const initAuthAndSync = async () => {
+        try {
+          if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+            await signInWithCustomToken(auth, __initial_auth_token);
+          } else {
+            await signInAnonymously(auth);
+          }
+        } catch (authErr) {
+          console.warn("Firebase Auth fallback anonymous:", authErr);
+        }
+      };
+
+      onAuthStateChanged(auth, (user) => {
+        if (user) {
+          currentUser = user;
+          isFirebaseReady = true;
+          document.getElementById('syncStatusDot').className = "w-2 h-2 rounded-full bg-emerald-500 animate-pulse";
+          document.getElementById('syncStatusText').innerText = "雲端即時連線中";
+          document.getElementById('cloudStatusLabel').innerText = "已連線 (即時同步開啟)";
+          attachCloudRealtimeListener();
+        } else {
+          initAuthAndSync();
+        }
+      });
+    } catch (e) {
+      console.warn("本機獨立模式運作 (無外掛雲端配置)：", e);
+      document.getElementById('syncStatusDot').className = "w-2 h-2 rounded-full bg-amber-500";
+      document.getElementById('syncStatusText').innerText = "本機離線模式 (仍具防覆蓋)";
+      document.getElementById('cloudStatusLabel').innerText = "本機模式";
+      loadLocalFallback();
+    }
+
+    // 取得資料庫文件參照 (路徑嚴格遵循規格 4 段：artifacts/{appId}/public/data，其中 data 為符合安全性規則之指定文件 ID)
+    function getScoresDocRef() {
+      return doc(db, 'artifacts', appId, 'public', 'data');
+    }
+
+    // 雲端即時監聽 Firestore (遵循路徑規範與無複合查詢)
+    function attachCloudRealtimeListener() {
+      if (!db || !currentUser) return;
+      const docRef = getScoresDocRef();
+
+      onSnapshot(docRef, (snapshot) => {
+        if (snapshot.exists()) {
+          const data = snapshot.data();
+          if (data) {
+            if (Array.isArray(data.students)) window.AppState.students = data.students;
+            if (Array.isArray(data.competitions)) window.AppState.competitions = data.competitions;
+            if (data.scores) window.AppState.scores = data.scores;
+            window.AppState.isCloudSynced = true;
+            renderAll();
+          }
+        } else {
+          // 初始化雲端資料庫文件
+          saveStateToCloud();
+        }
+      }, (error) => {
+        console.warn("Firestore 即時監聽離線或權限受限，自動切換至本機防護模式:", error.message);
+        document.getElementById('syncStatusDot').className = "w-2 h-2 rounded-full bg-amber-500";
+        document.getElementById('syncStatusText').innerText = "本機離線保存模式";
+        document.getElementById('cloudStatusLabel').innerText = "本機模式 (支援離線與 JSON 備份)";
+        loadLocalFallback();
+      });
+    }
+
+    // 將資料即時推播至雲端 (防止覆蓋，原子更新)
+    window.saveStateToCloud = async function() {
+      // 隨時同步至 localStorage 作為斷網保護
+      try {
+        localStorage.setItem(`contest_local_cache_${appId}`, JSON.stringify({
+          students: window.AppState.students,
+          competitions: window.AppState.competitions,
+          scores: window.AppState.scores
+        }));
+      } catch (err) {}
+
+      if (!db || !currentUser || !isFirebaseReady) return;
+
+      try {
+        const docRef = getScoresDocRef();
+        await setDoc(docRef, {
+          students: window.AppState.students,
+          competitions: window.AppState.competitions,
+          scores: window.AppState.scores,
+          updatedAt: new Date().toISOString(),
+          lastUpdatedBy: currentUser.uid
+        }, { merge: true });
+      } catch (err) {
+        console.error("儲存至雲端失敗:", err);
+      }
+    };
+
+    function loadLocalFallback() {
+      const cached = localStorage.getItem(`contest_local_cache_${appId}`);
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (parsed.students) window.AppState.students = parsed.students;
+          if (parsed.competitions) window.AppState.competitions = parsed.competitions;
+          if (parsed.scores) window.AppState.scores = parsed.scores;
+        } catch (e) {}
+      }
+      renderAll();
+    }
+
+    // 初始化渲染
+    window.renderAll = function() {
+      renderStudentsList();
+      renderCompetitionsList();
+      renderTabs();
+      if (window.AppState.currentTab !== 'settings') {
+        renderCompetitionScoringPage(window.AppState.currentTab);
+      }
+    };
+  </script>
+
+  <!-- ================= 業務邏輯與介面互動腳本 ================= -->
+  <script>
+    // 中文年級與班級加權智慧排序演算法 (確保由低年級依序排至高年級：如二甲、三甲、四甲、五甲、六甲)
+    function parseClassGradeWeight(className) {
+      if (!className) return 999999;
+      const str = String(className).trim();
+
+      // 中文數字映射 (支援至十二年級、國高中等)
+      const zhNumberMap = {
+        '一': 1, '二': 2, '三': 3, '四': 4, '五': 5,
+        '六': 6, '七': 7, '八': 8, '九': 9, '十': 10,
+        '十一': 11, '十二': 12
+      };
+
+      // 班別映射 (甲乙丙丁、忠孝仁愛等)
+      const sectionMap = {
+        '甲': 1, '乙': 2, '丙': 3, '丁': 4, '戊': 5, '己': 6, '庚': 7, '辛': 8,
+        '忠': 1, '孝': 2, '仁': 3, '愛': 4, '信': 5, '義': 6, '和': 7, '平': 8,
+        'A': 1, 'B': 2, 'C': 3, 'D': 4, 'E': 5, 'F': 6,
+        'a': 1, 'b': 2, 'c': 3, 'd': 4, 'e': 5, 'f': 6
+      };
+
+      let grade = 99;
+      let section = 0;
+
+      // 1. 匹配「一年級 / 一年一班 / 一年甲班」等帶「年」字的格式
+      const zhYearMatch = str.match(/^([一二三四五六七八九十]+)\s*年/);
+      // 2. 匹配「一甲 / 二甲 / 三乙 / 六丙」等直接以中文數字開頭的常見簡稱
+      const zhDirectMatch = str.match(/^([一二三四五六七八九十]+)([\u4e00-\u9fa5a-zA-Z0-9]+)/);
+
+      if (zhYearMatch) {
+        grade = zhNumberMap[zhYearMatch[1]] || 99;
+      } else if (zhDirectMatch && zhNumberMap[zhDirectMatch[1]]) {
+        grade = zhNumberMap[zhDirectMatch[1]];
+      } else {
+        // 3. 匹配純阿拉伯數字格式，如 101, 201, 501 或 2-1, 3-2
+        const dashMatch = str.match(/^(\d{1,2})\s*[-_班級年]\s*(\d+)/);
+        if (dashMatch) {
+          grade = parseInt(dashMatch[1], 10);
+          section = parseInt(dashMatch[2], 10);
+        } else {
+          const numMatch = str.match(/^(\d{1,4})/);
+          if (numMatch) {
+            const val = parseInt(numMatch[1], 10);
+            if (val >= 100) {
+              grade = Math.floor(val / 100);
+              section = val % 100;
+            } else {
+              grade = val;
+            }
+          }
+        }
+      }
+
+      // 解析班別 (若尚未從數字中解析出來)
+      if (section === 0) {
+        // 檢查甲乙丙丁或忠孝仁愛
+        for (const [key, val] of Object.entries(sectionMap)) {
+          if (str.includes(key)) {
+            section = val;
+            break;
+          }
+        }
+        // 檢查「1班」、「2班」
+        const secNumMatch = str.match(/(\d+)\s*班/);
+        if (secNumMatch) {
+          section = parseInt(secNumMatch[1], 10);
+        }
+      }
+
+      return (grade * 1000) + section;
+    }
+
+    // 依年級由小至大排序班級清單
+    function sortClassNames(classesArray) {
+      return classesArray.sort((a, b) => {
+        const weightA = parseClassGradeWeight(a);
+        const weightB = parseClassGradeWeight(b);
+        if (weightA !== weightB) return weightA - weightB;
+        return a.localeCompare(b, 'zh-Hant');
+      });
+    }
+
+    // 產生唯一 ID
+    function generateId(prefix = 'id') {
+      return prefix + '_' + Math.random().toString(36).substr(2, 9);
+    }
+
+    // ================= 標籤頁切換 =================
+    window.switchTab = function(tabId) {
+      window.AppState.currentTab = tabId;
+      
+      const settingsView = document.getElementById('view-settings');
+      const compView = document.getElementById('view-competition');
+      const settingsTabBtn = document.getElementById('tab-settings');
+
+      if (tabId === 'settings') {
+        settingsView.classList.remove('hidden');
+        compView.classList.add('hidden');
+        settingsTabBtn.className = "tab-btn px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all duration-200 flex items-center gap-2 bg-sky-600 text-white shadow-sm";
+      } else {
+        settingsView.classList.add('hidden');
+        compView.classList.remove('hidden');
+        settingsTabBtn.className = "tab-btn px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all duration-200 flex items-center gap-2 text-slate-600 hover:bg-slate-100";
+        renderCompetitionScoringPage(tabId);
+      }
+      renderTabs();
+    };
+
+    // 渲染動態標籤列
+    function renderTabs() {
+      const container = document.getElementById('dynamicTabs');
+      container.innerHTML = '';
+
+      window.AppState.competitions.forEach(comp => {
+        const isActive = window.AppState.currentTab === comp.id;
+        const btn = document.createElement('button');
+        btn.onclick = () => switchTab(comp.id);
+        btn.className = `tab-btn px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all duration-200 flex items-center gap-2 ${
+          isActive 
+            ? 'bg-sky-600 text-white shadow-sm font-bold' 
+            : 'text-slate-700 bg-white hover:bg-slate-100 border border-slate-200/60'
+        }`;
+        btn.innerHTML = `
+          <i class="fa-solid fa-trophy text-xs ${isActive ? 'text-amber-300' : 'text-slate-400'}"></i>
+          <span>${escapeHtml(comp.name)}</span>
+        `;
+        container.appendChild(btn);
+      });
+    }
+
+    // ================= 學生資訊管理 =================
+    window.handleIndividualStudentSubmit = function(e) {
+      e.preventDefault();
+      const classInput = document.getElementById('stuClassInput');
+      const nameInput = document.getElementById('stuNameInput');
+      const className = classInput.value.trim();
+      const name = nameInput.value.trim();
+
+      if (!className || !name) return;
+
+      const newStudent = {
+        id: generateId('stu'),
+        className: className,
+        name: name
+      };
+
+      window.AppState.students.push(newStudent);
+      window.saveStateToCloud();
+      renderStudentsList();
+      classInput.value = '';
+      nameInput.value = '';
+      classInput.focus();
+      showToast(`已成功新增學生：${className} ${name}`);
+    };
+
+    // 批次匯入處理
+    window.handleBatchStudentsSubmit = function() {
+      const textarea = document.getElementById('batchStudentTextarea');
+      const content = textarea.value.trim();
+      if (!content) {
+        showToast('請輸入或貼上學生名單內容', 'error');
+        return;
+      }
+
+      const lines = content.split('\n');
+      let count = 0;
+
+      lines.forEach(line => {
+        const cleanLine = line.trim();
+        if (!cleanLine) return;
+        // 支援逗號、Tab 或空格分離
+        const parts = cleanLine.split(/[\t,，\s]+/);
+        if (parts.length >= 2) {
+          const className = parts[0].trim();
+          const name = parts.slice(1).join(' ').trim();
+          if (className && name) {
+            window.AppState.students.push({
+              id: generateId('stu'),
+              className: className,
+              name: name
+            });
+            count++;
+          }
+        }
+      });
+
+      if (count > 0) {
+        window.saveStateToCloud();
+        renderStudentsList();
+        toggleStudentBatchModal(false);
+        textarea.value = '';
+        showToast(`成功批次匯入 ${count} 位學生資料！`);
+      } else {
+        showToast('未能辨識出名單，請確認格式：班級 姓名', 'error');
+      }
+    };
+
+    // 渲染學生名單清單
+    function renderStudentsList() {
+      const container = document.getElementById('studentsListContainer');
+      const countBadge = document.getElementById('studentCountBadge');
+      countBadge.innerText = window.AppState.students.length;
+
+      if (window.AppState.students.length === 0) {
+        container.innerHTML = `
+          <div class="p-8 text-center text-slate-400 text-xs">
+            <i class="fa-solid fa-user-slash text-2xl mb-2 text-slate-300 block"></i>
+            目前尚未建立學生資料。請使用上方表單或批次匯入學生名單。
+          </div>
+        `;
+        return;
+      }
+
+      // 先整理學生並排序
+      const sortedStudents = [...window.AppState.students].sort((a, b) => {
+        const weightA = parseClassGradeWeight(a.className);
+        const weightB = parseClassGradeWeight(b.className);
+        if (weightA !== weightB) return weightA - weightB;
+        if (a.className !== b.className) return a.className.localeCompare(b.className, 'zh-Hant');
+        return a.name.localeCompare(b.name, 'zh-Hant');
+      });
+
+      let html = '';
+      sortedStudents.forEach(stu => {
+        html += `
+          <div class="px-4 py-2.5 flex items-center justify-between hover:bg-slate-50 text-xs">
+            <div class="flex items-center gap-3">
+              <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-medium">${escapeHtml(stu.className)}</span>
+              <span class="font-bold text-slate-800">${escapeHtml(stu.name)}</span>
+            </div>
+            <button onclick="deleteStudentConfirm('${stu.id}', '${escapeHtml(stu.name)}')" class="text-slate-400 hover:text-rose-600 p-1 transition-colors" title="刪除學生">
+              <i class="fa-regular fa-trash-can"></i>
+            </button>
+          </div>
+        `;
+      });
+      container.innerHTML = html;
+    }
+
+    // 刪除個別學生
+    window.deleteStudentConfirm = function(studentId, studentName) {
+      showCustomConfirm({
+        title: '刪除學生確認',
+        message: `確定要刪除學生「${studentName}」嗎？若該學生已有比賽成績亦將同步移除。`,
+        onConfirm: () => {
+          window.AppState.students = window.AppState.students.filter(s => s.id !== studentId);
+          // 清除相關賽事紀錄
+          Object.keys(window.AppState.scores).forEach(compId => {
+            if (window.AppState.scores[compId]) {
+              delete window.AppState.scores[compId][studentId];
+            }
+          });
+          window.saveStateToCloud();
+          renderStudentsList();
+          showToast(`已成功移除學生：${studentName}`);
+        }
+      });
+    };
+
+    // 清空全部學生確認
+    window.clearAllStudentsConfirm = function() {
+      if (window.AppState.students.length === 0) return;
+      showCustomConfirm({
+        title: '清空全部學生名單',
+        message: '此動作將清除所有已登記的學生與其目前全部名次紀錄，確定要全部重設嗎？',
+        onConfirm: () => {
+          window.AppState.students = [];
+          window.AppState.scores = {};
+          window.saveStateToCloud();
+          renderStudentsList();
+          showToast('已清空全部學生名單');
+        }
+      });
+    };
+
+    // ================= 比賽項目設定管理 =================
+    window.openCompetitionModal = function(mode, compId = null) {
+      const modal = document.getElementById('modalCompetition');
+      const form = document.getElementById('compForm');
+      const formId = document.getElementById('compFormId');
+      const formName = document.getElementById('compFormName');
+      const title = document.getElementById('compModalTitle');
+
+      if (mode === 'edit' && compId) {
+        const comp = window.AppState.competitions.find(c => c.id === compId);
+        if (!comp) return;
+        formId.value = comp.id;
+        formName.value = comp.name;
+        title.innerHTML = `<i class="fa-solid fa-pen-to-square text-sky-600"></i> 修改比賽設定`;
+
+        // 設置名次radio
+        const rankRadios = document.getElementsByName('compFormRanks');
+        let matched = false;
+        rankRadios.forEach(r => {
+          if (r.value === String(comp.maxRank)) {
+            r.checked = true;
+            matched = true;
+          }
+        });
+        if (!matched) {
+          document.getElementById('rankCustomRadio').checked = true;
+          handleRankRadioChange('custom');
+          document.getElementById('compFormCustomRankNum').value = comp.maxRank;
+        } else {
+          handleRankRadioChange(comp.maxRank);
+        }
+
+        // 設置重複性radio
+        const dupRadios = document.getElementsByName('compFormDuplicate');
+        dupRadios.forEach(r => {
+          r.checked = (r.value === String(comp.allowDuplicates));
+        });
+      } else {
+        // 新增模式
+        formId.value = '';
+        form.reset();
+        title.innerHTML = `<i class="fa-solid fa-trophy text-sky-600"></i> 新增比賽項目`;
+        handleRankRadioChange(3);
+      }
+
+      modal.classList.remove('hidden');
+    };
+
+    window.closeCompetitionModal = function() {
+      document.getElementById('modalCompetition').classList.add('hidden');
+    };
+
+    window.handleRankRadioChange = function(val) {
+      const customBox = document.getElementById('customRankInputBox');
+      if (val === 'custom') {
+        customBox.classList.remove('hidden');
+      } else {
+        customBox.classList.add('hidden');
+      }
+    };
+
+    window.handleCompetitionSubmit = function(e) {
+      e.preventDefault();
+      const compId = document.getElementById('compFormId').value;
+      const compName = document.getElementById('compFormName').value.trim();
+      
+      // 計算名次範圍
+      let maxRank = 3;
+      const rankRadios = document.getElementsByName('compFormRanks');
+      let selectedVal = '3';
+      rankRadios.forEach(r => {
+        if (r.checked) selectedVal = r.value;
+      });
+
+      if (selectedVal === 'custom') {
+        const num = parseInt(document.getElementById('compFormCustomRankNum').value, 10);
+        maxRank = (num && num >= 1 && num <= 30) ? num : 3;
+      } else {
+        maxRank = parseInt(selectedVal, 10);
+      }
+
+      // 重複性
+      const dupRadios = document.getElementsByName('compFormDuplicate');
+      let allowDuplicates = false;
+      dupRadios.forEach(r => {
+        if (r.checked) allowDuplicates = (r.value === 'true');
+      });
+
+      if (!compName) return;
+
+      if (compId) {
+        // 編輯既有比賽
+        const comp = window.AppState.competitions.find(c => c.id === compId);
+        if (comp) {
+          comp.name = compName;
+          comp.maxRank = maxRank;
+          comp.allowDuplicates = allowDuplicates;
+          showToast(`已更新「${compName}」比賽設定`);
+        }
+      } else {
+        // 新增全新比賽 (自動建立新標籤頁)
+        const newId = generateId('comp');
+        window.AppState.competitions.push({
+          id: newId,
+          name: compName,
+          maxRank: maxRank,
+          allowDuplicates: allowDuplicates
+        });
+        window.AppState.scores[newId] = {};
+        showToast(`成功新增比賽「${compName}」，已建立新標籤！`);
+      }
+
+      window.saveStateToCloud();
+      closeCompetitionModal();
+      renderCompetitionsList();
+      renderTabs();
+    };
+
+    // 刪除比賽
+    window.deleteCompetitionConfirm = function(compId, compName) {
+      showCustomConfirm({
+        title: '刪除比賽項目',
+        message: `確定要刪除「${compName}」比賽與專屬標籤嗎？此比賽所有已登記的名次紀錄皆會移除。`,
+        onConfirm: () => {
+          window.AppState.competitions = window.AppState.competitions.filter(c => c.id !== compId);
+          delete window.AppState.scores[compId];
+          if (window.AppState.currentTab === compId) {
+            window.AppState.currentTab = 'settings';
+          }
+          window.saveStateToCloud();
+          renderCompetitionsList();
+          renderTabs();
+          switchTab(window.AppState.currentTab);
+          showToast(`已刪除比賽：${compName}`);
+        }
+      });
+    };
+
+    // 渲染首頁設定中比賽清單卡片
+    function renderCompetitionsList() {
+      const container = document.getElementById('competitionsListContainer');
+      const badge = document.getElementById('competitionCountBadge');
+      badge.innerText = window.AppState.competitions.length;
+
+      if (window.AppState.competitions.length === 0) {
+        container.innerHTML = `
+          <div class="p-8 text-center text-slate-400 text-xs border border-dashed border-slate-200 rounded-xl">
+            <i class="fa-solid fa-trophy text-2xl mb-2 text-slate-300 block"></i>
+            目前尚未建立比賽項目。點選右上角「新增比賽項目」即可開始設定！
+          </div>
+        `;
+        return;
+      }
+
+      let html = '';
+      window.AppState.competitions.forEach(comp => {
+        // 計算得獎人數
+        const compScores = window.AppState.scores[comp.id] || {};
+        const awardedCount = Object.values(compScores).filter(r => r && r !== 'none').length;
+
+        html += `
+          <div class="p-4 rounded-xl border border-slate-200 hover:border-sky-300 transition-all bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+            <div class="space-y-1">
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-slate-800 text-sm">${escapeHtml(comp.name)}</span>
+                <span class="px-2 py-0.5 text-[11px] rounded bg-sky-50 text-sky-700 font-medium">取前 ${comp.maxRank} 名</span>
+                <span class="px-2 py-0.5 text-[11px] rounded ${comp.allowDuplicates ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'} font-medium">
+                  ${comp.allowDuplicates ? '名次可重複' : '名次不重複'}
+                </span>
+              </div>
+              <p class="text-xs text-slate-500">
+                目前已有 <span class="font-bold text-sky-600">${awardedCount}</span> 位學生獲得名次
+              </p>
+            </div>
+            <div class="flex items-center gap-1.5 self-end sm:self-auto">
+              <button onclick="switchTab('${comp.id}')" class="px-3 py-1.5 text-xs font-semibold bg-sky-50 text-sky-700 hover:bg-sky-100 rounded-lg transition-colors flex items-center gap-1">
+                <i class="fa-solid fa-arrow-up-right-from-square"></i> 進入計分
+              </button>
+              <button onclick="openCompetitionModal('edit', '${comp.id}')" class="p-2 text-slate-400 hover:text-sky-600 rounded-lg hover:bg-slate-50 transition-colors" title="修改比賽名稱或名次">
+                <i class="fa-solid fa-pen-to-square"></i>
+              </button>
+              <button onclick="deleteCompetitionConfirm('${comp.id}', '${escapeHtml(comp.name)}')" class="p-2 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-slate-50 transition-colors" title="刪除比賽">
+                <i class="fa-regular fa-trash-can"></i>
+              </button>
+            </div>
+          </div>
+        `;
+      });
+      container.innerHTML = html;
+    }
+
+    // ================= 比賽項目評定計分頁面 (班級欄位與下拉選擇名次) =================
+    function renderCompetitionScoringPage(compId) {
+      const comp = window.AppState.competitions.find(c => c.id === compId);
+      if (!comp) {
+        switchTab('settings');
+        return;
+      }
+
+      // 抬頭資訊更新
+      document.getElementById('currentCompTitle').innerText = comp.name;
+      document.getElementById('currentCompRules').innerText = `錄取範圍：前 ${comp.maxRank} 名 · 設定模式：${comp.allowDuplicates ? '允許並列名次' : '不可重複名次'}`;
+      
+      const dupBadge = document.getElementById('compDuplicateBadge');
+      if (comp.allowDuplicates) {
+        dupBadge.className = "px-2.5 py-1 text-xs font-semibold rounded-md bg-amber-100 text-amber-800";
+        dupBadge.innerText = "名次可並列";
+      } else {
+        dupBadge.className = "px-2.5 py-1 text-xs font-semibold rounded-md bg-emerald-100 text-emerald-800";
+        dupBadge.innerText = "名次不可重複 (獨佔)";
+      }
+
+      // 名次名稱清單
+      const rankList = [];
+      const rankZhTitles = ['第一名', '第二名', '第三名', '第四名', '第五名', '第六名', '第七名', '第八名', '第九名', '第十名'];
+      for (let i = 1; i <= comp.maxRank; i++) {
+        const title = i <= 10 ? rankZhTitles[i - 1] : `第 ${i} 名`;
+        rankList.push({ value: String(i), label: title });
+      }
+
+      // 確保成績記錄結構存在
+      if (!window.AppState.scores[compId]) {
+        window.AppState.scores[compId] = {};
+      }
+      const currentScores = window.AppState.scores[compId];
+
+      // 統計已被選走的名次 (用於防止重複)
+      const takenRanksMap = {}; // rankValue -> student
+      if (!comp.allowDuplicates) {
+        Object.keys(currentScores).forEach(stuId => {
+          const rVal = currentScores[stuId];
+          if (rVal && rVal !== 'none') {
+            const stu = window.AppState.students.find(s => s.id === stuId);
+            takenRanksMap[rVal] = stu ? `${stu.className} ${stu.name}` : '其他學生';
+          }
+        });
+      }
+
+      // 呈現目前獲獎摘要 Banner
+      renderActiveRanksBanner(comp, currentScores, rankList);
+
+      // 班級分組與低年級至高年級依序排序
+      const classGroups = {};
+      window.AppState.students.forEach(student => {
+        if (!classGroups[student.className]) {
+          classGroups[student.className] = [];
+        }
+        classGroups[student.className].push(student);
+      });
+
+      const sortedClassNames = sortClassNames(Object.keys(classGroups));
+      const gridContainer = document.getElementById('classesGridContainer');
+
+      if (sortedClassNames.length === 0) {
+        gridContainer.innerHTML = `
+          <div class="col-span-full py-12 text-center bg-white rounded-2xl border border-dashed border-slate-300">
+            <i class="fa-solid fa-user-group text-3xl text-slate-300 mb-3 block"></i>
+            <h4 class="font-bold text-slate-700">尚未建立任何學生名冊</h4>
+            <p class="text-xs text-slate-500 mt-1">請切換回「首頁設定」登記或批次匯入學生名單。</p>
+            <button onclick="switchTab('settings')" class="mt-4 px-4 py-2 bg-sky-600 text-white rounded-lg text-xs font-medium">前往建立名單</button>
+          </div>
+        `;
+        return;
+      }
+
+      let gridHtml = '';
+      sortedClassNames.forEach(className => {
+        const studentsInClass = classGroups[className];
+        
+        // 渲染每個班級的卡片 (整寬卡片，各班獨立呈現)
+        gridHtml += `
+          <div class="bg-white rounded-2xl border border-slate-200/90 shadow-sm flex flex-col overflow-hidden hover:shadow-md transition-shadow">
+            <!-- 班級卡片標題列 -->
+            <div class="bg-gradient-to-r from-slate-100 to-slate-50 px-5 py-3 border-b border-slate-200 flex items-center justify-between">
+              <div class="flex items-center gap-2.5">
+                <span class="w-7 h-7 rounded-lg bg-sky-600 text-white flex items-center justify-center text-xs font-bold shadow-xs">
+                  <i class="fa-solid fa-graduation-cap text-xs"></i>
+                </span>
+                <h4 class="font-bold text-slate-800 text-base">${escapeHtml(className)}</h4>
+              </div>
+              <span class="text-xs text-slate-600 font-medium bg-white px-3 py-1 rounded-full border border-slate-200 shadow-2xs">${studentsInClass.length} 位學生</span>
+            </div>
+
+            <!-- 學生名單以橫式呈現：每列 6 人 (自適應：小螢幕2~4人，電腦大螢幕每列6人) -->
+            <div class="p-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+        `;
+
+        studentsInClass.forEach(stu => {
+          const currentRank = currentScores[stu.id] || 'none';
+          const isWinner = currentRank !== 'none';
+
+          gridHtml += `
+            <div class="p-2.5 rounded-xl border ${
+              isWinner 
+                ? 'border-amber-300 bg-amber-50/50 ring-1 ring-amber-300' 
+                : 'border-slate-200 bg-slate-50/70 hover:bg-slate-50'
+            } transition-all flex flex-col justify-between">
+              <!-- 學生姓名 -->
+              <div class="flex items-center justify-between mb-2 gap-1">
+                <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5 truncate" title="${escapeHtml(stu.name)}">
+                  <i class="fa-solid fa-user text-slate-400 text-[10px]"></i>
+                  <span class="truncate">${escapeHtml(stu.name)}</span>
+                </span>
+                ${isWinner ? `
+                  <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 flex items-center gap-0.5 shrink-0">
+                    <i class="fa-solid fa-medal text-amber-600"></i> 得獎
+                  </span>
+                ` : ''}
+              </div>
+
+              <!-- 每個學生姓名下方下拉選擇名次 -->
+              <div class="relative">
+                <select 
+                  onchange="handleScoreChange('${compId}', '${stu.id}', this.value)"
+                  class="w-full text-xs py-1.5 px-2 rounded-lg border ${
+                    isWinner 
+                      ? 'border-amber-400 bg-white text-amber-900 font-semibold' 
+                      : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400'
+                  } focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all cursor-pointer">
+                  
+                  <option value="none" ${currentRank === 'none' ? 'selected' : ''}>— 未獲獎 —</option>
+                  
+                  ${rankList.map(rank => {
+                    const isSelected = currentRank === rank.value;
+                    const isTaken = !comp.allowDuplicates && takenRanksMap[rank.value] && !isSelected;
+                    const takenBy = takenRanksMap[rank.value] || '';
+
+                    return `
+                      <option 
+                        value="${rank.value}" 
+                        ${isSelected ? 'selected' : ''} 
+                        ${isTaken ? 'disabled class="text-slate-300 bg-slate-100"' : ''}>
+                        ${rank.label} ${isTaken ? `(已被 ${takenBy} 取得)` : ''}
+                      </option>
+                    `;
+                  }).join('')}
+                </select>
+              </div>
+            </div>
+          `;
+        });
+
+        gridHtml += `
+            </div>
+          </div>
+        `;
+      });
+
+      gridContainer.innerHTML = gridHtml;
+    }
+
+    // 處理下拉選單修改名次 (即時存檔並多端同步)
+    window.handleScoreChange = function(compId, studentId, rankValue) {
+      const comp = window.AppState.competitions.find(c => c.id === compId);
+      if (!comp) return;
+
+      if (!window.AppState.scores[compId]) {
+        window.AppState.scores[compId] = {};
+      }
+
+      // 檢查非重複邏輯防呆
+      if (!comp.allowDuplicates && rankValue !== 'none') {
+        const currentScores = window.AppState.scores[compId];
+        const existingStudentId = Object.keys(currentScores).find(sId => currentScores[sId] === rankValue && sId !== studentId);
+        if (existingStudentId) {
+          const conflictStudent = window.AppState.students.find(s => s.id === existingStudentId);
+          const studentName = conflictStudent ? `${conflictStudent.className} ${conflictStudent.name}` : '其他同學';
+          showToast(`此名次已被 ${studentName} 取得，不可重複！`, 'error');
+          renderCompetitionScoringPage(compId);
+          return;
+        }
+      }
+
+      if (rankValue === 'none') {
+        delete window.AppState.scores[compId][studentId];
+      } else {
+        window.AppState.scores[compId][studentId] = rankValue;
+      }
+
+      // 推播至雲端並重新渲染維持一致防呆
+      window.saveStateToCloud();
+      renderCompetitionScoringPage(compId);
+      
+      const stu = window.AppState.students.find(s => s.id === studentId);
+      const stuName = stu ? stu.name : '學生';
+      showToast(`已登記 ${stuName} 的成績`);
+    };
+
+    // 渲染上方得獎名單快速快覽條
+    function renderActiveRanksBanner(comp, currentScores, rankList) {
+      const banner = document.getElementById('activeRanksBanner');
+      const list = document.getElementById('activeRanksList');
+
+      const awardedKeys = Object.keys(currentScores).filter(k => currentScores[k] && currentScores[k] !== 'none');
+      if (awardedKeys.length === 0) {
+        banner.classList.add('hidden');
+        return;
+      }
+
+      banner.classList.remove('hidden');
+      
+      // 依名次排序
+      const sortedAwards = awardedKeys.map(stuId => {
+        const rankVal = currentScores[stuId];
+        const student = window.AppState.students.find(s => s.id === stuId);
+        const rankObj = rankList.find(r => r.value === rankVal);
+        return {
+          rankVal: parseInt(rankVal, 10),
+          rankLabel: rankObj ? rankObj.label : `第 ${rankVal} 名`,
+          student: student
+        };
+      }).sort((a, b) => a.rankVal - b.rankVal);
+
+      list.innerHTML = sortedAwards.map(item => `
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-indigo-200 text-indigo-900 font-medium shadow-2xs">
+          <span class="font-bold text-amber-600">${item.rankLabel}</span>: 
+          <span>${item.student ? `${item.student.className} ${item.student.name}` : '未知'}</span>
+        </span>
+      `).join('');
+    }
+
+    // ================= 匯出此比賽成績 CSV =================
+    window.exportCurrentScoreCSV = function() {
+      const compId = window.AppState.currentTab;
+      const comp = window.AppState.competitions.find(c => c.id === compId);
+      if (!comp) return;
+
+      const currentScores = window.AppState.scores[compId] || {};
+      let csvContent = "\uFEFF班級,學生姓名,比賽項目,榮獲名次\n";
+
+      window.AppState.students.forEach(stu => {
+        const rVal = currentScores[stu.id];
+        const rankText = (rVal && rVal !== 'none') ? `第${rVal}名` : '未得獎';
+        csvContent += `"${stu.className}","${stu.name}","${comp.name}","${rankText}"\n`;
+      });
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `${comp.name}_比賽成績名冊.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showToast('已匯出成績 CSV 試算表！');
+    };
+
+    // ================= 查看目前得獎名冊 Modal =================
+    window.toggleLeaderboardModal = function(show) {
+      const modal = document.getElementById('modalLeaderboard');
+      if (show) {
+        const compId = window.AppState.currentTab;
+        const comp = window.AppState.competitions.find(c => c.id === compId);
+        if (!comp) return;
+
+        document.getElementById('lbCompTitle').innerText = `${comp.name} · 得獎榮譽榜`;
+        const container = document.getElementById('leaderboardContent');
+        const currentScores = window.AppState.scores[compId] || {};
+
+        const rankZhTitles = ['第一名', '第二名', '第三名', '第四名', '第五名', '第六名', '第七名', '第八名', '第九名', '第十名'];
+        const winners = [];
+
+        Object.keys(currentScores).forEach(stuId => {
+          const rVal = currentScores[stuId];
+          if (rVal && rVal !== 'none') {
+            const stu = window.AppState.students.find(s => s.id === stuId);
+            if (stu) {
+              const num = parseInt(rVal, 10);
+              const label = num <= 10 ? rankZhTitles[num - 1] : `第 ${num} 名`;
+              winners.push({ rankNum: num, label: label, student: stu });
+            }
+          }
+        });
+
+        winners.sort((a, b) => a.rankNum - b.rankNum);
+
+        if (winners.length === 0) {
+          container.innerHTML = `
+            <div class="py-8 text-center text-slate-400 text-xs">
+              <i class="fa-solid fa-medal text-2xl text-slate-300 mb-2 block"></i>
+              目前此項目尚未有評定名次登記。
+            </div>
+          `;
+        } else {
+          container.innerHTML = winners.map((w, index) => {
+            let badgeBg = 'bg-slate-100 text-slate-700';
+            if (w.rankNum === 1) badgeBg = 'bg-amber-100 text-amber-800 border-amber-300 font-extrabold';
+            else if (w.rankNum === 2) badgeBg = 'bg-slate-200 text-slate-800 font-bold';
+            else if (w.rankNum === 3) badgeBg = 'bg-orange-100 text-orange-800 font-bold';
+
+            return `
+              <div class="flex items-center justify-between p-3 rounded-xl border border-slate-200 ${w.rankNum <= 3 ? 'bg-amber-50/30' : 'bg-white'}">
+                <div class="flex items-center gap-3">
+                  <span class="px-3 py-1 rounded-lg text-xs border ${badgeBg}">
+                    ${w.label}
+                  </span>
+                  <span class="text-xs text-slate-500">${escapeHtml(w.student.className)}</span>
+                  <span class="text-sm font-bold text-slate-800">${escapeHtml(w.student.name)}</span>
+                </div>
+                <i class="fa-solid fa-trophy ${w.rankNum === 1 ? 'text-amber-500' : 'text-slate-300'} text-sm"></i>
+              </div>
+            `;
+          }).join('');
+        }
+        modal.classList.remove('hidden');
+      } else {
+        modal.classList.add('hidden');
+      }
+    };
+
+    // ================= 備份與還原功能 (全域 JSON) =================
+    window.openBackupModal = function() { toggleBackupModal(true); };
+    window.toggleBackupModal = function(show) {
+      document.getElementById('modalBackup').classList.toggle('hidden', !show);
+    };
+
+    window.openCloudModal = function() { toggleCloudModal(true); };
+    window.toggleCloudModal = function(show) {
+      document.getElementById('modalCloud').classList.toggle('hidden', !show);
+    };
+
+    window.toggleStudentBatchModal = function(show) {
+      document.getElementById('modalStudentBatch').classList.toggle('hidden', !show);
+    };
+
+    window.exportAllDataJSON = function() {
+      const fullData = {
+        appId: appId,
+        version: "1.0",
+        exportDate: new Date().toISOString(),
+        students: window.AppState.students,
+        competitions: window.AppState.competitions,
+        scores: window.AppState.scores
+      };
+
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(fullData, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `比賽成績完整備份_${new Date().toISOString().slice(0,10)}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      showToast('已完成全域資料 JSON 備份下載！');
+    };
+
+    window.handleImportJSON = function(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const imported = JSON.parse(e.target.result);
+          if (imported.students && imported.competitions) {
+            window.AppState.students = imported.students || [];
+            window.AppState.competitions = imported.competitions || [];
+            window.AppState.scores = imported.scores || {};
+            window.saveStateToCloud();
+            renderAll();
+            toggleBackupModal(false);
+            showToast('備份資料已成功完整還原！');
+          } else {
+            showToast('JSON 格式不符，還原失敗', 'error');
+          }
+        } catch (err) {
+          showToast('解析 JSON 檔案失敗', 'error');
+        }
+      };
+      reader.readAsText(file);
+    };
+
+    // ================= 自訂對話框 (取消/確定，避免 alert/confirm) =================
+    window.showCustomConfirm = function({ title, message, onConfirm }) {
+      const modal = document.getElementById('modalCustomConfirm');
+      const titleEl = document.getElementById('confirmTitle');
+      const msgEl = document.getElementById('confirmMessage');
+      const btnOk = document.getElementById('btnConfirmOk');
+      const btnCancel = document.getElementById('btnConfirmCancel');
+
+      titleEl.innerText = title;
+      msgEl.innerText = message;
+      modal.classList.remove('hidden');
+
+      const cleanup = () => {
+        modal.classList.add('hidden');
+        btnOk.onclick = null;
+        btnCancel.onclick = null;
+      };
+
+      btnOk.onclick = () => {
+        cleanup();
+        if (typeof onConfirm === 'function') onConfirm();
+      };
+      btnCancel.onclick = () => {
+        cleanup();
+      };
+    };
+
+    // ================= Toast 訊息提示 =================
+    window.showToast = function(message, type = 'success') {
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toastMsg');
+      const toastIcon = document.getElementById('toastIcon');
+
+      toastMsg.innerText = message;
+      if (type === 'error') {
+        toast.className = "fixed bottom-5 right-5 z-50 flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-lg border text-xs sm:text-sm font-medium transition-all duration-300 transform bg-rose-600 text-white border-rose-700 opacity-100 translate-y-0";
+        toastIcon.className = "fa-solid fa-circle-exclamation";
+      } else {
+        toast.className = "fixed bottom-5 right-5 z-50 flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-lg border text-xs sm:text-sm font-medium transition-all duration-300 transform bg-slate-900 text-white border-slate-800 opacity-100 translate-y-0";
+        toastIcon.className = "fa-solid fa-circle-check text-emerald-400";
+      }
+
+      setTimeout(() => {
+        toast.classList.replace('opacity-100', 'opacity-0');
+        toast.classList.replace('translate-y-0', 'translate-y-16');
+      }, 2600);
+    };
+
+    function escapeHtml(string) {
+      if (!string) return '';
+      return String(string)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+  </script>
+</body>
+</html>
